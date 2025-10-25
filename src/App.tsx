@@ -2954,6 +2954,8 @@ const App: React.FC = () => {
         setEditAttendance(null);
         setEditAttendanceForm({
           status: "",
+          date: "",
+          time: "",
           photoBase64: null,
           error: "",
           loading: false,
