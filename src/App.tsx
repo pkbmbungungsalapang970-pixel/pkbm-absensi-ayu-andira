@@ -257,6 +257,7 @@ const App: React.FC = () => {
     useState(false);
   const [isManualTime, setIsManualTime] = useState(false);
   const [isManualDate, setIsManualDate] = useState(false);
+  const [isCheckingAttendance, setIsCheckingAttendance] = useState(false);
 
   useEffect(() => {
     const urlParams = new URLSearchParams(window.location.search);
@@ -542,6 +543,7 @@ const App: React.FC = () => {
     date: string,
     mapel: string
   ) => {
+    setIsCheckingAttendance(true); // ✅ Set loading jadi true
     try {
       const response = await fetch(
         `${ENDPOINT}?action=getAttendanceData&_t=${Date.now()}`
@@ -557,11 +559,10 @@ const App: React.FC = () => {
                 ? attendance.date.split("/").reverse().join("-")
                 : attendance.date;
 
-              // ✅ Tambahkan cek mapel!
               return (
                 attendance.nisn === nisn &&
                 attendanceDate === date &&
-                attendance.mapel === mapel // 👈 INI YANG BARU!
+                attendance.mapel === mapel
               );
             }
           );
@@ -569,12 +570,14 @@ const App: React.FC = () => {
           setStudentAttendanceStatus({
             hasAttended: !!existingAttendance,
             attendanceDate: existingAttendance?.date || "",
-            attendedMapel: existingAttendance?.mapel || "", // Simpan mapel yang sudah diabsen
+            attendedMapel: existingAttendance?.mapel || "",
           });
         }
       }
     } catch (error) {
       console.error("Error checking student attendance:", error);
+    } finally {
+      setIsCheckingAttendance(false); // ✅ Set loading jadi false setelah selesai
     }
   };
 
@@ -2333,7 +2336,18 @@ const App: React.FC = () => {
   );
 
   const renderFormPage = () => (
-    <div className="bg-white shadow-lg rounded-lg p-6">
+    <div className="bg-white shadow-lg rounded-lg p-6 relative">
+      {/* ✅ TAMBAHKAN INI: Overlay loading ketika sedang cek attendance */}
+      {isCheckingAttendance && (
+        <div className="absolute inset-0 bg-white bg-opacity-90 flex items-center justify-center z-10 rounded-lg">
+          <div className="text-center">
+            <div className="inline-block animate-spin rounded-full h-12 w-12 border-b-2 border-blue-600 mb-4"></div>
+            <p className="text-gray-700 font-medium">Memuat data absensi...</p>
+            <p className="text-gray-500 text-sm mt-2">Mohon tunggu sebentar</p>
+          </div>
+        </div>
+      )}
+
       <div className="space-y-4">
         <div className="grid grid-cols-1 gap-4">
           <div className="grid grid-cols-2 gap-4">
@@ -2342,14 +2356,16 @@ const App: React.FC = () => {
               name="date"
               value={form.date}
               readOnly
-              className="w-full p-2 border border-gray-300 rounded-lg bg-gray-100 text-gray-700"
+              disabled={isCheckingAttendance} // ✅ Disable saat loading
+              className="w-full p-2 border border-gray-300 rounded-lg bg-gray-100 text-gray-700 disabled:opacity-50"
             />
             <input
               type="text"
               name="time"
               value={form.time}
               readOnly
-              className="w-full p-2 border border-gray-300 rounded-lg bg-gray-100 text-gray-700"
+              disabled={isCheckingAttendance} // ✅ Disable saat loading
+              className="w-full p-2 border border-gray-300 rounded-lg bg-gray-100 text-gray-700 disabled:opacity-50"
             />
           </div>
 
@@ -2358,7 +2374,8 @@ const App: React.FC = () => {
             name="mapel"
             value={form.mapel || "Belum dipilih"}
             readOnly
-            className="w-full p-2 border border-gray-300 rounded-lg bg-gray-100 text-gray-700"
+            disabled={isCheckingAttendance} // ✅ Disable saat loading
+            className="w-full p-2 border border-gray-300 rounded-lg bg-gray-100 text-gray-700 disabled:opacity-50"
           />
 
           <input
@@ -2366,7 +2383,8 @@ const App: React.FC = () => {
             name="class"
             value={form.class}
             readOnly
-            className="w-full p-2 border border-gray-300 rounded-lg bg-gray-100 text-gray-700"
+            disabled={isCheckingAttendance} // ✅ Disable saat loading
+            className="w-full p-2 border border-gray-300 rounded-lg bg-gray-100 text-gray-700 disabled:opacity-50"
           />
 
           <input
@@ -2374,7 +2392,8 @@ const App: React.FC = () => {
             name="name"
             value={form.name}
             readOnly
-            className="w-full p-2 border border-gray-300 rounded-lg bg-gray-100 text-gray-700"
+            disabled={isCheckingAttendance} // ✅ Disable saat loading
+            className="w-full p-2 border border-gray-300 rounded-lg bg-gray-100 text-gray-700 disabled:opacity-50"
           />
 
           <input
@@ -2382,7 +2401,8 @@ const App: React.FC = () => {
             name="nisn"
             value={form.nisn}
             readOnly
-            className="w-full p-2 border border-gray-300 rounded-lg bg-gray-100 text-gray-700"
+            disabled={isCheckingAttendance} // ✅ Disable saat loading
+            className="w-full p-2 border border-gray-300 rounded-lg bg-gray-100 text-gray-700 disabled:opacity-50"
           />
 
           <div className="space-y-2">
@@ -2391,6 +2411,7 @@ const App: React.FC = () => {
               type="file"
               accept="image/*"
               onChange={handleFileSelect}
+              disabled={isCheckingAttendance} // ✅ Disable saat loading
               style={{ display: "none" }}
             />
 
@@ -2399,7 +2420,7 @@ const App: React.FC = () => {
                 <button
                   type="button"
                   onClick={openCameraApp}
-                  disabled={form.loading}
+                  disabled={form.loading || isCheckingAttendance} // ✅ Disable saat loading
                   className="w-full bg-blue-600 text-white p-3 rounded-lg hover:bg-blue-700 transition duration-200 flex items-center justify-center disabled:opacity-50"
                 >
                   {form.loading ? "⏳ Memproses..." : "📸 Buka Kamera HP"}
@@ -2421,14 +2442,16 @@ const App: React.FC = () => {
                   <button
                     type="button"
                     onClick={retakePhoto}
-                    className="flex-1 bg-yellow-600 text-white p-2 rounded-lg hover:bg-yellow-700 transition duration-200"
+                    disabled={isCheckingAttendance} // ✅ Disable saat loading
+                    className="flex-1 bg-yellow-600 text-white p-2 rounded-lg hover:bg-yellow-700 transition duration-200 disabled:opacity-50"
                   >
                     📸 Ambil Ulang
                   </button>
                   <button
                     type="button"
                     onClick={openCameraApp}
-                    className="flex-1 bg-blue-600 text-white p-2 rounded-lg hover:bg-blue-700 transition duration-200"
+                    disabled={isCheckingAttendance} // ✅ Disable saat loading
+                    className="flex-1 bg-blue-600 text-white p-2 rounded-lg hover:bg-blue-700 transition duration-200 disabled:opacity-50"
                   >
                     📷 Foto Lain
                   </button>
@@ -2455,7 +2478,7 @@ const App: React.FC = () => {
           <button
             type="button"
             onClick={handleSubmit}
-            disabled={!form.photoBase64 || form.loading}
+            disabled={!form.photoBase64 || form.loading || isCheckingAttendance} // ✅ Disable saat loading
             className="w-full bg-blue-600 text-white p-3 rounded-lg hover:bg-blue-700 transition duration-200 disabled:opacity-50 disabled:cursor-not-allowed"
           >
             {form.loading ? "⏳ Menyimpan..." : "✅ Tambah Absen"}
@@ -2463,6 +2486,7 @@ const App: React.FC = () => {
         )}
       </div>
 
+      {/* Tabel tetap sama seperti sebelumnya */}
       <div className="mt-6 overflow-x-auto">
         <table className="w-full text-sm text-left text-gray-700">
           <thead className="text-xs uppercase bg-gray-200">
@@ -2474,7 +2498,7 @@ const App: React.FC = () => {
               <th className="px-4 py-2">NISN</th>
               <th className="px-4 py-2">Foto</th>
               <th className="px-4 py-2">Status</th>
-              <th className="px-4 py-2">Mapel</th> {/* 👈 BARU! */}
+              <th className="px-4 py-2">Mapel</th>
             </tr>
           </thead>
           <tbody>
@@ -2496,6 +2520,8 @@ const App: React.FC = () => {
                     <span className="text-gray-500">Tidak ada foto</span>
                   )}
                 </td>
+                <td className="px-4 py-2">{attendance.status}</td>
+                <td className="px-4 py-2">{attendance.mapel}</td>
               </tr>
             ))}
           </tbody>
