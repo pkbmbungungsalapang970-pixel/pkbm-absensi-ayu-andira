@@ -256,6 +256,7 @@ const App: React.FC = () => {
   const [showDeleteAttendanceModal, setShowDeleteAttendanceModal] =
     useState(false);
   const [isManualTime, setIsManualTime] = useState(false);
+  const [isManualDate, setIsManualDate] = useState(false);
 
   useEffect(() => {
     const urlParams = new URLSearchParams(window.location.search);
@@ -326,13 +327,19 @@ const App: React.FC = () => {
       (prev: FormState): FormState => ({ ...prev, date, time: initialTime })
     );
 
-    // ✅ UBAH INI: Hanya set initial time jika belum manual
+    // ✅ KODE BARU: Hanya set initial jika BELUM diubah manual
     setTeacherForm(
-      (prev: TeacherAttendanceFormState): TeacherAttendanceFormState => ({
-        ...prev,
-        date,
-        time: initialTime,
-      })
+      (prev: TeacherAttendanceFormState): TeacherAttendanceFormState => {
+        // Jika tanggal atau jam sudah diubah manual, jangan update
+        if (isManualDate || isManualTime) {
+          return prev;
+        }
+        return {
+          ...prev,
+          date,
+          time: initialTime,
+        };
+      }
     );
 
     // Panggil fetchMapelData
@@ -433,7 +440,7 @@ const App: React.FC = () => {
         URL.revokeObjectURL(form.photo);
       }
     };
-  }, [isLoggedIn, userRole, form.nisn, isManualTime]); // ✅ Tambahkan isManualTime ke dependency
+  }, [isLoggedIn, userRole, form.nisn, isManualTime, isManualDate]); // ✅ Tambahkan isManualTime ke dependency
 
   // Auto-polling untuk halaman data absensi
   useEffect(() => {
@@ -618,27 +625,38 @@ const App: React.FC = () => {
   ) => {
     const { name, value } = e.target;
 
-    // ✅ UBAH BAGIAN INI - Tambahkan deteksi manual time
-    if (name === "date" || name === "time") {
+    // ✅ KODE BARU - Handle date dan time secara terpisah
+    if (name === "date") {
       setTeacherForm(
         (prev: TeacherAttendanceFormState): TeacherAttendanceFormState => ({
           ...prev,
-          [name]: value,
+          date: value,
           error: "",
         })
       );
 
-      // ✅ TAMBAHKAN INI: Jika guru mengubah jam manual, hentikan auto-update
-      if (name === "time") {
-        setIsManualTime(true); // Tandai bahwa jam diubah manual
-      }
+      // ✅ PENTING: Tandai bahwa tanggal diubah manual
+      setIsManualDate(true);
 
       // Reset data absensi hari ini ketika tanggal berubah
-      if (name === "date") {
-        setAbsensiHariIni({});
-        setTempAbsensi({});
-        setIsManualTime(false); // ✅ Reset ke auto-update saat ganti tanggal
-      }
+      setAbsensiHariIni({});
+      setTempAbsensi({});
+
+      return;
+    }
+
+    if (name === "time") {
+      setTeacherForm(
+        (prev: TeacherAttendanceFormState): TeacherAttendanceFormState => ({
+          ...prev,
+          time: value,
+          error: "",
+        })
+      );
+
+      // ✅ PENTING: Tandai bahwa jam diubah manual
+      setIsManualTime(true);
+
       return;
     }
 
@@ -1182,7 +1200,9 @@ const App: React.FC = () => {
     setIsLoggedIn(false);
     setUserRole(null);
     setCurrentPage("form");
-    setIsPolling(false); // Tambahkan ini
+    setIsPolling(false);
+    setIsManualTime(false);
+    setIsManualDate(false);
 
     // Dapatkan tanggal dan jam saat ini
     const makassarTime = new Intl.DateTimeFormat("id-ID", {
@@ -2510,6 +2530,34 @@ const App: React.FC = () => {
                 📅
               </span>
             </div>
+            {isManualDate && (
+              <button
+                type="button"
+                onClick={() => {
+                  const now = new Date();
+                  const makassarTime = new Intl.DateTimeFormat("id-ID", {
+                    timeZone: "Asia/Makassar",
+                    year: "numeric",
+                    month: "2-digit",
+                    day: "2-digit",
+                  }).formatToParts(now);
+
+                  const getPart = (part: string) =>
+                    makassarTime.find((p) => p.type === part)?.value;
+                  const date = `${getPart("year")}-${getPart(
+                    "month"
+                  )}-${getPart("day")}`;
+
+                  setTeacherForm((prev) => ({ ...prev, date }));
+                  setIsManualDate(false);
+                  setAbsensiHariIni({});
+                  setTempAbsensi({});
+                }}
+                className="mt-1 text-xs text-blue-600 hover:text-blue-800 underline"
+              >
+                🔄 Reset ke Hari Ini
+              </button>
+            )}
           </div>
 
           {/* Custom Time Picker 24 Jam dengan Mini Tabel (Grid Select) & Ikon Refresh */}
