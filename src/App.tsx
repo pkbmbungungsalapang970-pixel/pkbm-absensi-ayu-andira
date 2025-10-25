@@ -257,6 +257,28 @@ const App: React.FC = () => {
     useState(false);
   const [isManualTime, setIsManualTime] = useState(false);
 
+  useEffect(() => {
+    const urlParams = new URLSearchParams(window.location.search);
+    const fromPKBM = urlParams.get("from") === "pkbm";
+    const mapelParam = urlParams.get("mapel");
+
+    if (fromPKBM) {
+      setIsFromPKBM(true);
+
+      // Auto-set role ke Siswa
+      setLoginForm((prev) => ({
+        ...prev,
+        role: "Siswa",
+      }));
+
+      // Auto-set mapel jika ada di URL
+      if (mapelParam) {
+        setSelectedMapel(mapelParam);
+        setMapelFromParam(mapelParam);
+      }
+    }
+  }, []);
+
   // ✅ PINDAHKAN FUNGSI INI KE LUAR useEffect — DI ATAS USEEFFECT, TAPI MASIH DI DALAM COMPONENT App
   const fetchMapelData = async () => {
     setLoadingMapel(true); // Pastikan state loadingMapel sudah ada di atas
@@ -385,7 +407,25 @@ const App: React.FC = () => {
       );
     }, 1000);
 
-    // ... kode lainnya (referrer check, dll)
+    const referrer = document.referrer;
+    if (
+      referrer.includes("app-siswa-pkbm.netlify.app") ||
+      window.location.search.includes("from=pkbm")
+    ) {
+      setIsFromPKBM(true);
+      setLoginForm((prev) => ({
+        ...prev,
+        role: "Siswa",
+      }));
+
+      // Cek URL parameter untuk mapel
+      const urlParams = new URLSearchParams(window.location.search);
+      const mapelParam = urlParams.get("mapel");
+      if (mapelParam) {
+        setSelectedMapel(mapelParam);
+        setMapelFromParam(mapelParam);
+      }
+    }
 
     return () => {
       clearInterval(interval);
